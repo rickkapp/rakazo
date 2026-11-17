@@ -1,0 +1,11 @@
+{
+  "name": "BlueAI",
+  "desktop": {
+    "appId": "ai.blueai.desktop",
+    "executableName": "blueai",
+    "updates": { "owner": "rickkapp", "repo": "rakazo" }
+  },
+  "replace": {
+    "https://github.com/elie222/rakazo/releases/download": "https://github.com/rickkapp/rakazo/releases/download"
+  }
+}
