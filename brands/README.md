@@ -32,13 +32,13 @@ keep shipping with the product.
 
 ## brand.json
 
-| Field                    | Meaning                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
+| Field                    | Meaning                                                                |
+| ------------------------ | ---------------------------------------------------------------------- |
 | `name`                   | Product name shown to people. Letters, digits and spaces.              |
-| `desktop.appId`          | macOS bundle id / Windows app id for the desktop app.                   |
-| `desktop.executableName` | Linux executable, and the desktop app's data folder name.               |
-| `desktop.updates`        | GitHub `owner` and `repo` whose releases the desktop app updates from.  |
-| `replace`                | Exact `"from": "to"` strings, e.g. upstream URLs you host yourself.     |
+| `desktop.appId`          | macOS bundle id / Windows app id for the desktop app.                  |
+| `desktop.executableName` | Linux executable, and the desktop app's data folder name.              |
+| `desktop.updates`        | GitHub `owner` and `repo` whose releases the desktop app updates from. |
+| `replace`                | Exact `"from": "to"` strings, e.g. upstream URLs you host yourself.    |
 
 Links you may want under `replace` once you host your own: `https://app.rakazo.com` (the desktop
 setup's hosted option), `https://rakazo.com/terms/` and `https://rakazo.com/privacy/` (shown at

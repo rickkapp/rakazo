@@ -16,7 +16,14 @@ import { fileURLToPath } from "node:url";
 export const UPSTREAM_NAME = "Rakazo";
 
 /** Product code and its tests. The marketing site, docs and changelog describe upstream. */
-const ROOTS = ["apps/api/", "apps/desktop/", "apps/mobile/", "apps/web/", "apps/worker/", "packages/"];
+const ROOTS = [
+  "apps/api/",
+  "apps/desktop/",
+  "apps/mobile/",
+  "apps/web/",
+  "apps/worker/",
+  "packages/",
+];
 
 const TEXT_EXTENSIONS = new Set([
   ".ts",
@@ -46,25 +53,32 @@ const TEXT_EXTENSIONS = new Set([
 const PROTECTED_LINES = [
   /x-rakazo-/i, // request header names
   /Rakazo-owned compacted/, // marker stored in message history and matched on read
-  /PLUGIN_REGISTRY = /, // registry id stored with plugin submissions
+  /PLUGIN_REGISTRY = |registry: "Rakazo"|\["Rakazo", "Reviewed notes\."\]/, // stored registry id
+  /getProjectName|"app-target/, // Expo fixtures with their own iOS project name
 ];
 
 /**
- * The name as a word, but not inside an identifier, a repository file name, a user agent or a
- * header: `RakazoIntents`, `Rakazo.icon`, `ios/Rakazo/`, `Rakazo/0.1`, `X-Rakazo-Space-Id`.
- * Names the build derives from the product name (`Rakazo.app`, `Rakazo.exe`, `MacOS/Rakazo`)
- * follow it, and so does a name after a non-Latin prefix such as Hebrew `ל-Rakazo`.
+ * The name as a word, but not inside an identifier, a URL or path, a file name, a user agent or
+ * a header: `RakazoIntents`, `github.com/elie222/Rakazo`, `Rakazo.icon`, `Rakazo.exe`,
+ * `Rakazo/0.1`, `startsWith("Rakazo/")`, `/^Rakazo\//`, `X-Rakazo-Space-Id`. The macOS bundle
+ * the build names after the product (`Rakazo.app`, `MacOS/Rakazo`) follows it, and so do
+ * `@Rakazo` mentions, `/Rakazo Cloud/` patterns and Hebrew's `ל-Rakazo`.
  */
 function namePattern(from) {
-  return new RegExp(
-    `(?<![.@\\\\\\w])(?<!\\w-)${from}(?!\\w|\\.(?!(?:app|exe)\\b)[A-Za-z]|/[\\w.]|-\\d)`,
-    "g",
-  );
+  const before = String.raw`(?:(?<![./\\\w])(?<!\w-)|(?<=MacOS/)|(?<=/)(?=${from}(?: |\.app\b)))`;
+  const after = String.raw`(?!\w|\.(?!app\b)[A-Za-z]|/[\w."'${"`"}]|\\/|-\d)`;
+  return new RegExp(`${before}${from}${after}`, "g");
+}
+
+/** Identifiers the build derives from brand.json, replaced wherever they appear. */
+function derivedReplacements(brand) {
+  return brand.desktop?.appId ? { "dev.rakazo.desktop": brand.desktop.appId } : {};
 }
 
 export function rebrandText(text, brand, from = UPSTREAM_NAME) {
   let out = text;
-  for (const [before, after] of Object.entries(brand.replace ?? {})) {
+  const replacements = { ...derivedReplacements(brand), ...brand.replace };
+  for (const [before, after] of Object.entries(replacements)) {
     out = out.split(before).join(after);
   }
   const pattern = namePattern(from);

@@ -16,10 +16,17 @@ test("renames the product where people read it", () => {
     ["Rakazoの通話", "BlueAIの通話"],
     ["<title>Set up Rakazo</title>", "<title>Set up BlueAI</title>"],
     ["ברוכים הבאים ל-Rakazo", "ברוכים הבאים ל-BlueAI"],
-    ["getByRole('radio', { name: /Rakazo Cloud/ })", "getByRole('radio', { name: /BlueAI Cloud/ })"],
+    [
+      "getByRole('radio', { name: /Rakazo Cloud/ })",
+      "getByRole('radio', { name: /BlueAI Cloud/ })",
+    ],
     ["/TOOLS\\.md\\s*Not used by Rakazo/,", "/TOOLS\\.md\\s*Not used by BlueAI/,"],
     ['findNamed(out, "Rakazo.app")', 'findNamed(out, "BlueAI.app")'],
-    ['"/Applications/Rakazo.app/Contents/MacOS/Rakazo"', '"/Applications/BlueAI.app/Contents/MacOS/BlueAI"'],
+    [
+      '"/Applications/Rakazo.app/Contents/MacOS/Rakazo"',
+      '"/Applications/BlueAI.app/Contents/MacOS/BlueAI"',
+    ],
+    ['prompt: "Use @Rakazo and @Interrogate"', 'prompt: "Use @BlueAI and @Interrogate"'],
   ]) {
     assert.equal(rebrandText(before, brand), after);
   }
@@ -32,10 +39,15 @@ test("keeps identifiers, paths, headers and user agents", () => {
     "RakazoIntents.swift",
     "packages/ui-tokens/assets/Rakazo.icon",
     '"/project/ios/Rakazo/RakazoIntents.swift"',
+    'repoIdentity("ssh://git@github.com/Elie222/Rakazo")',
+    'request.headers.get("user-agent")?.startsWith("Rakazo/")',
+    "expect(ua).toMatch(/^Rakazo\\//);",
+    '{ id: "w-9", app_name: "Rakazo.exe", pid: 99 }',
+    'getProjectName: () => "Rakazo",',
     "Rakazo-1.2.3.AppImage",
     'const USER_AGENT = "Rakazo/0.1 (+https://github.com/elie222/rakazo)";',
     'headers: { "X-Rakazo-Space-Id": id, label: "Rakazo" }',
-    "`Rakazo-owned compacted context through message sequence ${seq}.`",
+    "`Rakazo-owned compacted context through message sequence 10.`",
     'const PLUGIN_REGISTRY = "Rakazo";',
   ]) {
     assert.equal(rebrandText(kept, brand), kept);
@@ -49,6 +61,14 @@ test("applies exact replacements before the name", () => {
     replace: { "https://github.com/elie222/rakazo/releases/download": "https://example.test/dl" },
   });
   assert.equal(out, 'const RELEASES = "https://example.test/dl";');
+});
+
+test("follows the desktop app id everywhere", () => {
+  const out = rebrandText("<string>dev.rakazo.desktop.speech</string>", {
+    ...brand,
+    desktop: { appId: "ai.blueai.desktop" },
+  });
+  assert.equal(out, "<string>ai.blueai.desktop.speech</string>");
 });
 
 test("is idempotent", () => {
@@ -70,7 +90,11 @@ test("rewrites desktop names, ids and the update feed", () => {
   };
   const out = rebrandDesktopPackage(pkg, {
     name: "BlueAI",
-    desktop: { appId: "ai.blueai.desktop", executableName: "blueai", updates: { owner: "o", repo: "r" } },
+    desktop: {
+      appId: "ai.blueai.desktop",
+      executableName: "blueai",
+      updates: { owner: "o", repo: "r" },
+    },
   });
   assert.equal(out.name, "@rakazo/desktop");
   assert.equal(out.productName, "BlueAI");
