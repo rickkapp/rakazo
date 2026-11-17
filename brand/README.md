@@ -20,6 +20,9 @@ strings. Applying is idempotent; to switch to a different name, start from a fre
   the bots' own description of the product.
 - Desktop: product name, app id, Linux executable name and its data folder, and the update feed,
   so a branded app never updates itself to an upstream build.
+- Mobile: app name, iOS bundle id and Android package, the iOS app group and extension ids, the
+  Expo slug, and the Expo project (see [Mobile builds](#mobile-builds)). The server's defaults
+  for push and passkeys (`APNS_VOIP_BUNDLE_ID`, `APPLE_APP_IDS`) follow the bundle id.
 - Any exact strings listed under `replace` (applied first), for links you host yourself.
 
 ## What stays
@@ -41,9 +44,31 @@ keep shipping with the product.
 | `desktop.executableName` | Optional. Linux executable and desktop data folder. Default: `<name>`.    |
 | `replace`                | Optional. Exact `"from": "to"` strings, e.g. upstream URLs you host.      |
 
-`<name>` is the name in lower case with spaces and punctuation removed. A new name means a new
-app id, which installs as a separate desktop app with its own data; set `desktop.appId` and
-`desktop.executableName` explicitly once you ship, so a later rename keeps existing installs.
+`<name>` is the name in lower case with spaces and punctuation removed. A new name means new
+app ids, which install as separate apps with their own data and store listings; set
+`desktop.appId`, `desktop.executableName` and `mobile.bundleId` explicitly once you ship, so a
+later rename keeps existing installs.
+
+## Mobile builds
+
+A branded build never uses upstream's Expo project: its over-the-air updates would replace the
+app's code and its push tokens belong to upstream. Until `mobile.expo` is set, applying removes
+the project so you can link your own:
+
+1. `pnpm brand:apply`, then in `apps/mobile`: `npx eas login` and `npx eas init`. Copy the
+   `owner` and `projectId` it writes into `mobile.expo` in `brand.json` and commit that.
+2. In the EAS `production` environment, set `EXPO_PUBLIC_API_URL` to your server's HTTPS origin
+   (release builds refuse to start without it), and `GOOGLE_SERVICES_JSON` to the Firebase
+   config for your Android package, which Android push needs.
+3. `npx eas build --profile production` (or `preview` for internal testers). EAS creates the
+   iOS bundle id, app group and extension ids in your Apple Developer account and signs them.
+4. On your server, set `EXPO_ACCESS_TOKEN` from your Expo account if the project uses enhanced
+   push security, and the `APNS_VOIP_*` keys for iOS call ringing and Live Activities
+   (see `docs/self-host-clients.md`).
+5. `npx eas submit` to send the build to App Store Connect and Google Play.
+
+The `rakazo://` link scheme stays, because the server accepts it as the app's origin; it only
+matters if the upstream app is installed on the same phone.
 
 Links you may want under `replace` once you host your own: `https://app.rakazo.com` (the desktop
 setup's hosted option), `https://rakazo.com/terms/` and `https://rakazo.com/privacy/` (shown at

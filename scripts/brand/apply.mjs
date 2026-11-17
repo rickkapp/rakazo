@@ -70,9 +70,15 @@ function namePattern(from) {
   return new RegExp(`${before}${from}${after}`, "g");
 }
 
-/** Upstream identifiers that follow the brand wherever they appear. */
+/**
+ * Upstream identifiers that follow the brand wherever they appear. The mobile bundle id also
+ * renames its app group (`group.com.rakazo.app`) and extension ids (`com.rakazo.app.widgets`).
+ */
 function derivedReplacements(brand) {
-  return brand.desktop?.appId ? { "dev.rakazo.desktop": brand.desktop.appId } : {};
+  return {
+    ...(brand.desktop?.appId ? { "dev.rakazo.desktop": brand.desktop.appId } : {}),
+    ...(brand.mobile?.bundleId ? { "com.rakazo.app": brand.mobile.bundleId } : {}),
+  };
 }
 
 /**
@@ -81,6 +87,10 @@ function derivedReplacements(brand) {
  * brand.json sets them.
  */
 export function resolveBrand(raw) {
+  const expo = raw?.mobile?.expo;
+  if (expo && (typeof expo.owner !== "string" || typeof expo.projectId !== "string")) {
+    throw new Error('"mobile.expo" needs both "owner" and "projectId" from your Expo project');
+  }
   if (typeof raw?.name !== "string" || !/^[\p{L}\p{N}][\p{L}\p{N} ]*$/u.test(raw.name)) {
     throw new Error('brand.json needs a "name" made of letters, digits and spaces');
   }
@@ -89,10 +99,15 @@ export function resolveBrand(raw) {
   if (!slug) throw new Error('"name" needs at least one Latin letter or digit for its ids');
   return {
     ...raw,
+    slug,
     desktop: {
       appId: `ai.${slug}.desktop`,
       executableName: slug,
       ...raw.desktop,
+    },
+    mobile: {
+      bundleId: `ai.${slug}.app`,
+      ...raw.mobile,
     },
   };
 }
@@ -129,6 +144,28 @@ export function rebrandDesktopPackage(pkg, brand) {
   return next;
 }
 
+/**
+ * The Expo project a mobile build belongs to. Upstream's project must never ship in a branded
+ * build: its over-the-air updates would replace the branded app's code, and its push tokens
+ * belong to upstream. Without `mobile.expo`, the project is removed so `eas init` links yours.
+ */
+export function rebrandMobileConfig(config, brand) {
+  const next = structuredClone(config);
+  const app = next.expo;
+  app.slug = brand.slug;
+  const expo = brand.mobile?.expo;
+  if (expo) {
+    app.owner = expo.owner;
+    app.extra = { ...app.extra, eas: { ...app.extra?.eas, projectId: expo.projectId } };
+    app.updates = { ...app.updates, url: `https://u.expo.dev/${expo.projectId}` };
+  } else {
+    delete app.owner;
+    if (app.extra?.eas) delete app.extra.eas.projectId;
+    if (app.updates) delete app.updates.url;
+  }
+  return next;
+}
+
 function trackedFiles(root) {
   return execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
     .split("\0")
@@ -149,6 +186,9 @@ export function applyBrand(root, brand, { check = false } = {}) {
     let after = rebrandText(before, brand);
     if (file === "apps/desktop/package.json") {
       after = `${JSON.stringify(rebrandDesktopPackage(JSON.parse(after), brand), null, 2)}\n`;
+    }
+    if (file === "apps/mobile/app.json") {
+      after = `${JSON.stringify(rebrandMobileConfig(JSON.parse(after), brand), null, 2)}\n`;
     }
     if (after === before) continue;
     changed.push(file);

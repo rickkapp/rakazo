@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { rebrandDesktopPackage, rebrandText, resolveBrand } from "./apply.mjs";
+import { rebrandDesktopPackage, rebrandMobileConfig, rebrandText, resolveBrand } from "./apply.mjs";
 
 const brand = { name: "BlueAI" };
 
@@ -71,6 +71,46 @@ test("follows the desktop app id everywhere", () => {
   assert.equal(out, "<string>ai.blueai.desktop.speech</string>");
 });
 
+test("follows the mobile bundle id into its app group and extensions", () => {
+  const mobile = { ...brand, mobile: { bundleId: "ai.blueai.app" } };
+  for (const [before, after] of [
+    ['"bundleIdentifier": "com.rakazo.app.widgets"', '"bundleIdentifier": "ai.blueai.app.widgets"'],
+    [
+      'export const IOS_SHARE_APP_GROUP = "group.com.rakazo.app";',
+      'export const IOS_SHARE_APP_GROUP = "group.ai.blueai.app";',
+    ],
+    ["package com.rakazo.notifications", "package com.rakazo.notifications"],
+  ]) {
+    assert.equal(rebrandText(before, mobile), after);
+  }
+});
+
+test("never ships upstream's Expo project", () => {
+  const config = {
+    expo: {
+      name: "Rakazo",
+      slug: "rakazo",
+      owner: "upstream",
+      extra: { router: {}, eas: { projectId: "upstream-id", build: { x: 1 } } },
+      updates: { url: "https://u.expo.dev/upstream-id" },
+    },
+  };
+  const unlinked = rebrandMobileConfig(config, resolveBrand(brand)).expo;
+  assert.equal(unlinked.slug, "blueai");
+  assert.equal(unlinked.owner, undefined);
+  assert.deepEqual(unlinked.extra, { router: {}, eas: { build: { x: 1 } } });
+  assert.deepEqual(unlinked.updates, {});
+
+  const linked = rebrandMobileConfig(
+    config,
+    resolveBrand({ ...brand, mobile: { expo: { owner: "ours", projectId: "our-id" } } }),
+  ).expo;
+  assert.equal(linked.owner, "ours");
+  assert.equal(linked.extra.eas.projectId, "our-id");
+  assert.equal(linked.updates.url, "https://u.expo.dev/our-id");
+  assert.equal(config.expo.owner, "upstream");
+});
+
 test("is idempotent", () => {
   const once = rebrandText("Welcome to Rakazo", brand);
   assert.equal(rebrandText(once, brand), once);
@@ -107,10 +147,9 @@ test("rewrites desktop names, ids and the update feed", () => {
 });
 
 test("derives ids from the name unless brand.json sets them", () => {
-  assert.deepEqual(resolveBrand({ name: "Blue AI" }).desktop, {
-    appId: "ai.blueai.desktop",
-    executableName: "blueai",
-  });
+  const derived = resolveBrand({ name: "Blue AI" });
+  assert.deepEqual(derived.desktop, { appId: "ai.blueai.desktop", executableName: "blueai" });
+  assert.deepEqual(derived.mobile, { bundleId: "ai.blueai.app" });
   const custom = resolveBrand({ name: "BlueAI", desktop: { appId: "com.example.blue" } });
   assert.deepEqual(custom.desktop, { appId: "com.example.blue", executableName: "blueai" });
 });
@@ -120,5 +159,6 @@ test("rejects names that would break strings or ids", () => {
   assert.throws(() => resolveBrand({ name: 'Blue"AI' }));
   assert.throws(() => resolveBrand({ name: "Rakazo" }));
   assert.throws(() => resolveBrand({ name: "ブルー" }));
+  assert.throws(() => resolveBrand({ name: "BlueAI", mobile: { expo: { owner: "ours" } } }));
   assert.equal(resolveBrand(brand).name, "BlueAI");
 });
