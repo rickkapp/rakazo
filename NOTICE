@@ -1,7 +1,7 @@
-BlueAI is a modified version of Rakazo, https://github.com/elie222/rakazo,
+This fork is a modified version of Rakazo, https://github.com/elie222/rakazo,
 used under the Apache License, Version 2.0 (see LICENSE). Builds made with
 `pnpm brand:apply` change the product name and identifiers described in
-brands/README.md.
+brand/README.md.
 
 Rakazo includes third-party code under the notices below.
 

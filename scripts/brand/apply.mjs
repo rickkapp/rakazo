@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// Rebrands the product in place from brands/<id>/brand.json.
+// Rebrands the product in place from brand/brand.json.
 //
-//   node scripts/brand/apply.mjs <id>          rewrite the working tree
-//   node scripts/brand/apply.mjs <id> --check  list what would change; exit 1 if anything would
+//   node scripts/brand/apply.mjs          rewrite the working tree
+//   node scripts/brand/apply.mjs --check  list what would change; exit 1 if anything would
 //
 // Only the name people see changes. Package names (@rakazo/*), env vars (RAKAZO_*), database
 // names, storage keys and wire protocol (X-Rakazo-* headers, the Rakazo/ user agent) stay as they
@@ -70,9 +70,31 @@ function namePattern(from) {
   return new RegExp(`${before}${from}${after}`, "g");
 }
 
-/** Identifiers the build derives from brand.json, replaced wherever they appear. */
+/** Upstream identifiers that follow the brand wherever they appear. */
 function derivedReplacements(brand) {
   return brand.desktop?.appId ? { "dev.rakazo.desktop": brand.desktop.appId } : {};
+}
+
+/**
+ * Checks brand.json and fills in what follows from the name, so renaming the product is a
+ * one-field change: `BlueAI` becomes app id `ai.blueai.desktop` and executable `blueai` unless
+ * brand.json sets them.
+ */
+export function resolveBrand(raw) {
+  if (typeof raw?.name !== "string" || !/^[\p{L}\p{N}][\p{L}\p{N} ]*$/u.test(raw.name)) {
+    throw new Error('brand.json needs a "name" made of letters, digits and spaces');
+  }
+  if (raw.name === UPSTREAM_NAME) throw new Error(`"name" is already ${UPSTREAM_NAME}`);
+  const slug = raw.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+  if (!slug) throw new Error('"name" needs at least one Latin letter or digit for its ids');
+  return {
+    ...raw,
+    desktop: {
+      appId: `ai.${slug}.desktop`,
+      executableName: slug,
+      ...raw.desktop,
+    },
+  };
 }
 
 export function rebrandText(text, brand, from = UPSTREAM_NAME) {
@@ -107,14 +129,6 @@ export function rebrandDesktopPackage(pkg, brand) {
   return next;
 }
 
-export function validateBrand(brand) {
-  if (typeof brand?.name !== "string" || !/^[\p{L}\p{N}][\p{L}\p{N} ]*$/u.test(brand.name)) {
-    throw new Error('brand.json needs a "name" made of letters, digits and spaces');
-  }
-  if (brand.name === UPSTREAM_NAME) throw new Error(`"name" is already ${UPSTREAM_NAME}`);
-  return brand;
-}
-
 function trackedFiles(root) {
   return execFileSync("git", ["ls-files", "-z"], { cwd: root, encoding: "utf8" })
     .split("\0")
@@ -144,19 +158,14 @@ export function applyBrand(root, brand, { check = false } = {}) {
 }
 
 function main() {
-  const [id, flag] = process.argv.slice(2);
-  if (!id || (flag && flag !== "--check")) {
-    console.error("Usage: node scripts/brand/apply.mjs <brand-id> [--check]");
+  const args = process.argv.slice(2);
+  if (args.some((arg) => arg !== "--check")) {
+    console.error("Usage: node scripts/brand/apply.mjs [--check]");
     process.exit(2);
   }
   const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-  const brandFile = path.join(root, "brands", id, "brand.json");
-  if (!existsSync(brandFile)) {
-    console.error(`No brand at brands/${id}/brand.json`);
-    process.exit(2);
-  }
-  const brand = validateBrand(JSON.parse(readFileSync(brandFile, "utf8")));
-  const check = flag === "--check";
+  const brand = resolveBrand(JSON.parse(readFileSync(path.join(root, "brand/brand.json"), "utf8")));
+  const check = args.includes("--check");
   const changed = applyBrand(root, brand, { check });
   for (const file of changed) console.log(`${check ? "would change" : "rebranded"} ${file}`);
   console.log(

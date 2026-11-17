@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { rebrandDesktopPackage, rebrandText, validateBrand } from "./apply.mjs";
+import { rebrandDesktopPackage, rebrandText, resolveBrand } from "./apply.mjs";
 
 const brand = { name: "BlueAI" };
 
@@ -106,9 +106,19 @@ test("rewrites desktop names, ids and the update feed", () => {
   assert.equal(pkg.productName, "Rakazo");
 });
 
+test("derives ids from the name unless brand.json sets them", () => {
+  assert.deepEqual(resolveBrand({ name: "Blue AI" }).desktop, {
+    appId: "ai.blueai.desktop",
+    executableName: "blueai",
+  });
+  const custom = resolveBrand({ name: "BlueAI", desktop: { appId: "com.example.blue" } });
+  assert.deepEqual(custom.desktop, { appId: "com.example.blue", executableName: "blueai" });
+});
+
 test("rejects names that would break strings or ids", () => {
-  assert.throws(() => validateBrand({}));
-  assert.throws(() => validateBrand({ name: 'Blue"AI' }));
-  assert.throws(() => validateBrand({ name: "Rakazo" }));
-  assert.equal(validateBrand(brand), brand);
+  assert.throws(() => resolveBrand({}));
+  assert.throws(() => resolveBrand({ name: 'Blue"AI' }));
+  assert.throws(() => resolveBrand({ name: "Rakazo" }));
+  assert.throws(() => resolveBrand({ name: "ブルー" }));
+  assert.equal(resolveBrand(brand).name, "BlueAI");
 });

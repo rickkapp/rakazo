@@ -25,6 +25,7 @@
     "sandbox:novita-template": "tsx packages/adapters/src/providers/computer/novita/build-novita-template.ts",
     "sandbox:e2b-template": "tsx packages/adapters/src/providers/computer/e2b/build-e2b-template.ts",
     "brand:apply": "node scripts/brand/apply.mjs",
+    "brand:check": "node scripts/brand/apply.mjs --check",
     "test": "node --test scripts/pnpm.test.mjs scripts/setup-worktree.test.mjs scripts/brand/apply.test.mjs && vitest run",
     "test:compose-smoke": "bash infra/compose/run-smokes.sh",
     "test:integration": "tsx packages/testkit/src/cli/harness.ts --integration",

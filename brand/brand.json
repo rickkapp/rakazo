@@ -1,8 +1,6 @@
 {
   "name": "BlueAI",
   "desktop": {
-    "appId": "ai.blueai.desktop",
-    "executableName": "blueai",
     "updates": { "owner": "rickkapp", "repo": "rakazo" }
   },
   "replace": {
