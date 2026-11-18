@@ -1,4 +1,5 @@
 import { buildSkillMd } from "@rakazo/core";
+import { loadServerSkills } from "./server-skills.js";
 
 const RAKAZO_DOCS: ReadonlyArray<readonly [topics: string, url: string]> = [
   ["Getting started, first bot, what Rakazo does", "https://rakazo.com/docs.md"],
@@ -73,8 +74,14 @@ export const BUILTIN_AGENT_SKILLS: Array<{
   name: string;
   description: string;
   content: string;
-}> = SKILLS.map(({ name, description, body }) => ({
-  name,
-  description,
-  content: buildSkillMd({ name, description, body }),
-}));
+}> = [
+  ...SKILLS.map(({ name, description, body }) => ({
+    name,
+    description,
+    content: buildSkillMd({ name, description, body }),
+  })),
+  // Operator-shipped skills (BUILTIN_SKILLS_DIR); a built-in name wins over a server skill's.
+  ...loadServerSkills().filter(
+    (extra) => !SKILLS.some((skill) => skill.name.toLowerCase() === extra.name.toLowerCase()),
+  ),
+];
